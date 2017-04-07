@@ -1,6 +1,5 @@
 ﻿using Microsoft.Azure.Documents.Client;
 using Microsoft.Extensions.Options;
-using System;
 
 namespace IEvangelist.DocumentDb.Settings
 {
@@ -8,7 +7,7 @@ namespace IEvangelist.DocumentDb.Settings
     {
         public string Endpoint { get; set; }
 
-        public string Key { get; set; }
+        public string AuthKey { get; set; }
 
         public string DatabaseId { get; set; }
 
@@ -16,10 +15,10 @@ namespace IEvangelist.DocumentDb.Settings
 
         RepositorySettings IOptions<RepositorySettings>.Value => this;
 
-        public Uri GetDocumentCollectionUri()
-            => UriFactory.CreateDocumentCollectionUri(DatabaseId, CollectionId);
+        public ConnectionPolicy DefaultConnectionPolicy { get; } =
+            new ConnectionPolicy { EnableEndpointDiscovery = false };
 
-        public Uri GetDocumentUri(string id)
-            => UriFactory.CreateDocumentUri(DatabaseId, CollectionId, id);
+        public RequestOptions DefaultRequestOptions { get; } =
+            new RequestOptions { OfferThroughput = 1000 };
     }
 }
