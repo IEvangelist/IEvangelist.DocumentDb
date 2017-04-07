@@ -3,8 +3,6 @@ using System;
 
 namespace IEvangelist.DocumentDb.Models
 {
-    [JsonObject(MemberSerialization = MemberSerialization.OptIn)]
-
     public class BaseDocument
     {
         [JsonProperty("id")]
