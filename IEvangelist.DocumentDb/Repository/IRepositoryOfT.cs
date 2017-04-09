@@ -9,8 +9,6 @@ namespace IEvangelist.DocumentDb.Repository
 {
     public interface IRepository<T> where T : BaseDocument
     {
-        Task InitializeAsync();
-
         Task<T> GetAsync(string id);
         
         Task<IEnumerable<T>> GetAsync(Expression<Func<T, bool>> predicate);

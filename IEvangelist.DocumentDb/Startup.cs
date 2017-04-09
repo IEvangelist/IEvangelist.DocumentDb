@@ -1,4 +1,3 @@
-using IEvangelist.DocumentDb.Models;
 using IEvangelist.DocumentDb.Repository;
 using IEvangelist.DocumentDb.Settings;
 using Microsoft.AspNetCore.Builder;
@@ -49,6 +48,8 @@ namespace IEvangelist.DocumentDb
                 Configuration.GetSection(nameof(RepositorySettings)));
 
             services.AddSingleton(typeof(IRepository<>), typeof(Repository<>));
+            services.AddSingleton<IRepositoryInitializer, RepositoryInitializerAndProvider>();
+            services.AddSingleton<IRepositoryClientProvider, RepositoryInitializerAndProvider>();
 
             // Add framework services.
             services.AddMvc();
@@ -58,7 +59,7 @@ namespace IEvangelist.DocumentDb
         public void Configure(IApplicationBuilder app, 
                               IHostingEnvironment env, 
                               ILoggerFactory loggerFactory,
-                              IRepository<Person> personRepo)
+                              IRepositoryInitializer repositoryInitializer)
         {
             if (env.IsDevelopment())
             {
@@ -77,7 +78,7 @@ namespace IEvangelist.DocumentDb
                        template: "{controller=Home}/{action=Index}/{id?}");
                });
 
-            personRepo.InitializeAsync().Wait();
+            repositoryInitializer.InitializeAsync().Wait();
         }
     }
 }

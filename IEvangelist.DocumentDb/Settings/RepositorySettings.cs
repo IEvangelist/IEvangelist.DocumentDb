@@ -20,5 +20,8 @@ namespace IEvangelist.DocumentDb.Settings
 
         public RequestOptions DefaultRequestOptions { get; } =
             new RequestOptions { OfferThroughput = 1000 };
+
+        public FeedOptions DefaultFeedOptions { get; } =
+            new FeedOptions { MaxItemCount = -1 };
     }
 }

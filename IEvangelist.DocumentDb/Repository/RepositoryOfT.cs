@@ -2,7 +2,6 @@
 using IEvangelist.DocumentDb.Models;
 using IEvangelist.DocumentDb.Settings;
 using Microsoft.Azure.Documents;
-using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
 using Microsoft.Extensions.Options;
 using System;
@@ -19,9 +18,11 @@ namespace IEvangelist.DocumentDb.Repository
         private readonly RepositorySettings _settings;
         private IDocumentClient _client;
 
-        public Repository(IOptions<RepositorySettings> options)
+        public Repository(IOptions<RepositorySettings> options,
+                          IRepositoryClientProvider clientProvider)
         {
             _settings = options?.Value ?? throw new ArgumentNullException(nameof(options));
+            _client = clientProvider?.DocumentClient ?? throw new ArgumentNullException(nameof(clientProvider));
         }
 
         public async Task<T> GetAsync(string id)
@@ -41,9 +42,11 @@ namespace IEvangelist.DocumentDb.Repository
 
         public async Task<IEnumerable<T>> GetAsync(Expression<Func<T, bool>> predicate)
         {
+            // TODO: limited linq and demo "SELECT blah"
+            
             IDocumentQuery<T> query =
                 _client.CreateDocumentQuery<T>(_settings.CreateDocumentCollectionUri(),
-                                               new FeedOptions { MaxItemCount = -1 })
+                                               _settings.DefaultFeedOptions)
                        .Where(predicate)
                        .AsDocumentQuery();
 
@@ -67,60 +70,5 @@ namespace IEvangelist.DocumentDb.Repository
 
         public Task DeleteAsync(string id)
             => _client.DeleteDocumentAsync(_settings.CreateDocumentUri(id));
-
-        public async Task InitializeAsync()
-        {
-            _client =
-                new DocumentClient(
-                    new Uri(_settings.Endpoint),
-                    _settings.AuthKey,
-                    _settings.DefaultConnectionPolicy);
-
-            var (databaseCreated, collectionCreated) =
-                await IsFirstInitializationAsync();
-
-            if (databaseCreated && collectionCreated)
-            {
-                // Seed logic could go here...
-            }
-        }
-
-        private async Task<(bool databaseCreated, bool collectionCreated)> IsFirstInitializationAsync()
-            => (await CreateDatabaseIfNotExistsAsync(),
-                await CreateCollectionIfNotExistsAsync());
-
-        private async Task<bool> CreateDatabaseIfNotExistsAsync()
-        {
-            try
-            {
-                await _client.ReadDatabaseAsync(_settings.CreateDatabaseUri());
-                return false;
-            }
-            catch (DocumentClientException e)
-            when (e.StatusCode == HttpStatusCode.NotFound)
-            {
-                await _client.CreateDatabaseAsync(_settings.CreateDatabase());
-                return true;
-            }
-        }
-
-        private async Task<bool> CreateCollectionIfNotExistsAsync()
-        {
-            try
-            {
-                await _client.ReadDocumentCollectionAsync(
-                    _settings.CreateDocumentCollectionUri());
-                return false;
-            }
-            catch (DocumentClientException e)
-            when (e.StatusCode == HttpStatusCode.NotFound)
-            {
-                await _client.CreateDocumentCollectionAsync(
-                        _settings.CreateDatabaseUri(),
-                        _settings.CreateDocumentCollection(),
-                        _settings.DefaultRequestOptions);
-                return true;
-            }
-        }
     }
 }
