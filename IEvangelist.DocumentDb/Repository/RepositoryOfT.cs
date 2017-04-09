@@ -15,8 +15,8 @@ namespace IEvangelist.DocumentDb.Repository
 {
     public class Repository<T> : IRepository<T> where T : BaseDocument
     {
-        private readonly RepositorySettings _settings;
-        private IDocumentClient _client;
+        protected readonly RepositorySettings _settings;
+        protected IDocumentClient _client;
 
         public Repository(IOptions<RepositorySettings> options,
                           IRepositoryClientProvider clientProvider)
@@ -25,7 +25,7 @@ namespace IEvangelist.DocumentDb.Repository
             _client = clientProvider?.DocumentClient ?? throw new ArgumentNullException(nameof(clientProvider));
         }
 
-        public async Task<T> GetAsync(string id)
+        public virtual async Task<T> GetAsync(string id)
         {
             try
             {
@@ -40,10 +40,8 @@ namespace IEvangelist.DocumentDb.Repository
             }
         }
 
-        public async Task<IEnumerable<T>> GetAsync(Expression<Func<T, bool>> predicate)
+        public virtual async Task<IEnumerable<T>> GetAsync(Expression<Func<T, bool>> predicate)
         {
-            // TODO: limited linq and demo "SELECT blah"
-            
             IDocumentQuery<T> query =
                 _client.CreateDocumentQuery<T>(_settings.CreateDocumentCollectionUri(),
                                                _settings.DefaultFeedOptions)
@@ -59,16 +57,16 @@ namespace IEvangelist.DocumentDb.Repository
             return results;
         }
 
-        public async Task<Document> CreateAsync(T value)
+        public virtual async Task<Document> CreateAsync(T value)
             => await _client.CreateDocumentAsync(_settings.CreateDocumentCollectionUri(), value);
 
-        public Task<Document[]> CreateAsync(IEnumerable<T> values)
+        public virtual Task<Document[]> CreateAsync(IEnumerable<T> values)
             => Task.WhenAll(values.Select(CreateAsync));
 
-        public async Task<Document> UpdateAsync(string id, T value)
+        public virtual async Task<Document> UpdateAsync(string id, T value)
             => await _client.ReplaceDocumentAsync(_settings.CreateDocumentUri(id), value);
 
-        public Task DeleteAsync(string id)
+        public virtual Task DeleteAsync(string id)
             => _client.DeleteDocumentAsync(_settings.CreateDocumentUri(id));
     }
 }
