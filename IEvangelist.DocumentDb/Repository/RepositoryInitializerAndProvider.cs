@@ -4,7 +4,11 @@ using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Extensions.Options;
 using System;
+using System.IO;
+using System.Linq;
 using System.Net;
+using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace IEvangelist.DocumentDb.Repository
@@ -29,16 +33,16 @@ namespace IEvangelist.DocumentDb.Repository
 
         async Task IRepositoryInitializer.InitializeAsync()
         {
-            var (databaseCreated, collectionCreated) =
+            var (databaseCreated, (collectionCreated, documentCollection)) =
                 await IsFirstInitializationAsync();
 
             if (databaseCreated && collectionCreated)
             {
-                // Seed logic could go here...
+                await CreatedStoreProceduresAsync(documentCollection);
             }
         }
 
-        private async Task<(bool databaseCreated, bool collectionCreated)> IsFirstInitializationAsync()
+        private async Task<(bool dbCreated, (bool colCreated, DocumentCollection col))> IsFirstInitializationAsync()
             => (await CreateDatabaseIfNotExistsAsync(),
                 await CreateCollectionIfNotExistsAsync());
 
@@ -57,23 +61,54 @@ namespace IEvangelist.DocumentDb.Repository
             }
         }
 
-        private async Task<bool> CreateCollectionIfNotExistsAsync()
+        private async Task<(bool, DocumentCollection)> CreateCollectionIfNotExistsAsync()
         {
             try
             {
-                await _client.ReadDocumentCollectionAsync(
-                    _settings.CreateDocumentCollectionUri());
-                return false;
+                var documentCollection = 
+                    await _client.ReadDocumentCollectionAsync(
+                        _settings.CreateDocumentCollectionUri());
+                return (false, documentCollection);
             }
             catch (DocumentClientException e)
             when (e.StatusCode == HttpStatusCode.NotFound)
             {
-                await _client.CreateDocumentCollectionAsync(
+                var documentCollection =
+                    await _client.CreateDocumentCollectionAsync(
                         _settings.CreateDatabaseUri(),
                         _settings.CreateDocumentCollection(),
                         _settings.DefaultRequestOptions);
-                return true;
+                return (true, documentCollection);
             }
+        }
+
+        private async Task CreatedStoreProceduresAsync(DocumentCollection collection)
+        {
+            var assembly = Assembly.GetEntryAssembly();
+            
+            foreach (var (resource, id) in assembly.GetManifestResourceNames()
+                                                   .Where(name => name.EndsWith(".js"))
+                                                   .Select(AsIdentifier))
+            {
+                using (var stream = assembly.GetManifestResourceStream(resource))
+                {
+                    using (var reader = new StreamReader(stream, Encoding.UTF8))
+                    {
+                        var storedProcedure = new StoredProcedure
+                        {
+                            Id = id,
+                            Body = await reader.ReadToEndAsync()
+                        };
+
+                        await _client.CreateStoredProcedureAsync(collection.StoredProceduresLink, storedProcedure);
+                    }
+                }
+            }
+
+            (string, string) AsIdentifier(string resourceName)
+                => (resourceName,
+                    resourceName.Replace("IEvangelist.DocumentDb.StoredProcedures.", "")
+                                .Replace(".js", ""));
         }
     }
 }

@@ -44,14 +44,17 @@ namespace IEvangelist.DocumentDb
                 });
             });
 
+            // Configure JSON appsettings.json file to POCO
             services.Configure<RepositorySettings>(
                 Configuration.GetSection(nameof(RepositorySettings)));
 
             services.AddSingleton(typeof(IRepository<>), typeof(Repository<>));
+
+            // Register initializer and client provider
             services.AddSingleton<IRepositoryInitializer, RepositoryInitializerAndProvider>();
             services.AddSingleton<IRepositoryClientProvider, RepositoryInitializerAndProvider>();
 
-            // Add framework services.
+            // Add framework services
             services.AddMvc();
         }
 
